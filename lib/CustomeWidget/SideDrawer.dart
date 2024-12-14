@@ -1,3 +1,5 @@
+import 'package:babyshop_hub/Admin/Add_product.dart';
+import 'package:babyshop_hub/Admin/DashBoard.dart';
 import 'package:babyshop_hub/Admin/add_categories.dart';
 import 'package:babyshop_hub/Admin/categories.dart';
 import 'package:babyshop_hub/screens/login.dart';
@@ -55,7 +57,7 @@ class Sidedrawer extends StatelessWidget {
             title: const Text('Dashboard'),
             onTap: () {
               // Handle navigation to Home
-              Navigator.pop(context); // Close the drawer
+              Navigator.push(context, MaterialPageRoute(builder: (context) => Dashboard()));; // Close the drawer
             },
           ),
           ListTile(
@@ -71,7 +73,7 @@ class Sidedrawer extends StatelessWidget {
             title: const Text('Add Products'),
             onTap: () {
               // Handle navigation to Settings
-              Navigator.push(context, MaterialPageRoute(builder: (context) => AddCategories())); // Close the drawer
+              Navigator.push(context, MaterialPageRoute(builder: (context) => AddProduct())); // Close the drawer
             },
           ),
           ListTile(

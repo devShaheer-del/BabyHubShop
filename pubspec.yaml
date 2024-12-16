@@ -41,6 +41,7 @@ dependencies:
   fl_chart: ^0.69.2
   image_picker: ^1.1.2
   permission_handler: ^11.3.1
+  get: ^4.6.6
 
 dev_dependencies:
   flutter_test:

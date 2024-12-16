@@ -1,6 +1,11 @@
+import 'dart:io';
+import 'dart:typed_data';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:babyshop_hub/CustomeWidget/SideDrawer.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:get/get.dart';
 
 class AddProduct extends StatefulWidget {
   const AddProduct({super.key});
@@ -12,48 +17,90 @@ class AddProduct extends StatefulWidget {
 class _AddProductState extends State<AddProduct> {
   final _formKey = GlobalKey<FormState>();
   String? _selectedCategory;
-  List<String> _categories = []; // Holds categories fetched from Firestore
+  List<String> _categories = [];
   final _productNameController = TextEditingController();
   final _productPriceController = TextEditingController();
 
-  // Fetch categories from Firestore
-// Fetch categories from Firestore
+  Rx<Uint8List?> imageBytes =
+      Rx<Uint8List?>(null); // For displaying selected image on web
+  RxString imagePath = ''.obs; // For storing selected image path on mobile
+
   Future<void> _fetchCategories() async {
     try {
-      var querySnapshot = await FirebaseFirestore.instance
-          .collection('categories') // Name of your Firestore collection
-          .get();
+      var querySnapshot =
+          await FirebaseFirestore.instance.collection('categories').get();
 
-      // Map each document in Firestore to its 'CategoryTitle' field
       var categoryList = querySnapshot.docs
           .map((doc) {
-            // Check if the 'CategoryTitle' field exists in the document
             if (doc.data().containsKey('CategoryTitle')) {
-              return doc['CategoryTitle']
-                  as String; // Get the CategoryTitle field
+              return doc['CategoryTitle'] as String;
             } else {
               print('CategoryTitle field is missing in document: ${doc.id}');
-              return null; // Return null if the field is missing
+              return null;
             }
           })
           .where((category) => category != null)
-          .toList(); // Filter out null values
+          .toList();
 
       setState(() {
-        _categories =
-            categoryList.cast<String>(); // Safely cast to List<String>
+        _categories = categoryList.cast<String>();
       });
     } catch (e) {
       print("Error fetching categories: $e");
     }
   }
 
+  Future<void> _pickImage() async {
+    final ImagePicker _picker = ImagePicker();
+    final XFile? pickedImage =
+        await _picker.pickImage(source: ImageSource.gallery);
 
+    if (pickedImage != null) {
+      if (kIsWeb) {
+        // For Web, read image bytes
+        final Uint8List bytes = await pickedImage.readAsBytes();
+        imageBytes.value = bytes;
+      } else {
+        // For Mobile, get image path
+        imagePath.value = pickedImage.path;
+      }
+    }
+  }
+
+  Future<void> _saveProduct() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    try {
+      await FirebaseFirestore.instance.collection('products').add({
+        'name': _productNameController.text,
+        'category': _selectedCategory,
+        'price': double.parse(_productPriceController.text),
+        'imagePath': kIsWeb ? 'Uploaded via Web' : imagePath.value,
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Product added successfully!')),
+      );
+
+      // Reset form
+      _formKey.currentState!.reset();
+      imageBytes.value = null;
+      imagePath.value = '';
+      setState(() {
+        _selectedCategory = null;
+      });
+    } catch (e) {
+      print("Error saving product: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Error adding product!')),
+      );
+    }
+  }
 
   @override
   void initState() {
     super.initState();
-    _fetchCategories(); // Fetch categories when the screen loads
+    _fetchCategories();
   }
 
   @override
@@ -67,8 +114,7 @@ class _AddProductState extends State<AddProduct> {
       ),
       drawer: const Sidedrawer(),
       body: Center(
-        child: _categories
-                .isEmpty // Show a loading spinner if categories are empty
+        child: _categories.isEmpty
             ? const CircularProgressIndicator()
             : Form(
                 key: _formKey,
@@ -78,13 +124,31 @@ class _AddProductState extends State<AddProduct> {
                   child: Column(
                     children: [
                       // Product Image Section
-                      Container(
-                        width: 300,
-                        margin: const EdgeInsets.only(top: 20, bottom: 20),
-                        child: Image.asset(
-                          '../../assets/images/babyproducts.png', // Fixed asset path
+                      Obx(
+                        () => Container(
+                          width: 300,
                           height: 150,
-                          fit: BoxFit.cover,
+                          margin: const EdgeInsets.only(top: 20, bottom: 20),
+                          decoration: BoxDecoration(
+                            border: Border.all(color: Colors.grey),
+                          ),
+                          child: kIsWeb
+                              ? (imageBytes.value != null
+                                  ? Image.memory(
+                                      imageBytes.value!,
+                                      fit: BoxFit.cover,
+                                    )
+                                  : const Center(
+                                      child: Text("No Image Selected")))
+                              : (imagePath.value.isNotEmpty
+                                  ? Image.file(
+                                      File(imagePath.value),
+                                      fit: BoxFit.cover,
+                                    )
+                                  : Image.asset(
+                                      '../../assets/images/babyproducts.png',
+                                      fit: BoxFit.cover,
+                                    )),
                         ),
                       ),
 
@@ -94,8 +158,8 @@ class _AddProductState extends State<AddProduct> {
                         margin: const EdgeInsets.only(bottom: 16),
                         child: TextFormField(
                           controller: _productNameController,
-                          decoration: InputDecoration(
-                            suffixIcon: const Icon(Icons.shopping_bag_outlined),
+                          decoration: const InputDecoration(
+                            suffixIcon: Icon(Icons.shopping_bag_outlined),
                             hintText: "Product Name",
                             labelText: "Product Name",
                           ),
@@ -113,7 +177,7 @@ class _AddProductState extends State<AddProduct> {
                         width: 300,
                         margin: const EdgeInsets.only(bottom: 16),
                         child: DropdownButtonFormField<String>(
-                          decoration: InputDecoration(
+                          decoration: const InputDecoration(
                             labelText: "Product Category",
                           ),
                           value: _selectedCategory,
@@ -144,9 +208,8 @@ class _AddProductState extends State<AddProduct> {
                         child: TextFormField(
                           controller: _productPriceController,
                           keyboardType: TextInputType.number,
-                          decoration: InputDecoration(
-                            suffixIcon:
-                                const Icon(Icons.currency_rupee_outlined),
+                          decoration: const InputDecoration(
+                            suffixIcon: Icon(Icons.currency_rupee_outlined),
                             hintText: "Product Price",
                             labelText: "Product Price",
                           ),
@@ -162,13 +225,11 @@ class _AddProductState extends State<AddProduct> {
                         ),
                       ),
 
+                      // Add Product Image Button
                       Container(
                         width: 250,
                         child: ElevatedButton(
-                          onPressed: (){
-
-                          },
-                          child: Text("Add Product Image"),
+                          onPressed: _pickImage,
                           style: ElevatedButton.styleFrom(
                             backgroundColor:
                                 const Color.fromARGB(255, 255, 98, 150),
@@ -177,6 +238,7 @@ class _AddProductState extends State<AddProduct> {
                             shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(14)),
                           ),
+                          child: const Text("Add Product Image"),
                         ),
                       ),
 
@@ -186,16 +248,7 @@ class _AddProductState extends State<AddProduct> {
                         height: 50,
                         margin: const EdgeInsets.only(top: 20),
                         child: ElevatedButton(
-                          onPressed: () {
-                            if (_formKey.currentState!.validate()) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Product added successfully!'),
-                                ),
-                              );
-                              // Add product save logic here
-                            }
-                          },
+                          onPressed: _saveProduct,
                           style: ElevatedButton.styleFrom(
                             backgroundColor:
                                 const Color.fromARGB(255, 255, 98, 150),

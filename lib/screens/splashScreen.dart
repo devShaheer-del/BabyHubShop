@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:babyshop_hub/screens/home.dart';
 import 'package:babyshop_hub/screens/login.dart';
 import 'package:flutter/material.dart';
 
@@ -14,7 +15,7 @@ class _SplashscreenState extends State<Splashscreen> {
   @override
   Widget build(BuildContext context) {
     Timer(Duration(seconds: 4), () {
-      Navigator.push(context, MaterialPageRoute(builder: (context) => Login()));
+      Navigator.push(context, MaterialPageRoute(builder: (context) => Home()));
     });
     return Scaffold(
       body: Center(

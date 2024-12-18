@@ -44,10 +44,7 @@ class _LoginState extends State<Login> {
 
           // Redirect based on the user's role
           if (role == 'Mother' || role == 'Father') {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (context) => Home()),
-            );
+            Navigator.push(context, MaterialPageRoute(builder: (context) => Home()));
           } else if (role == 'Admin') {
             Navigator.pushReplacement(
               context,
